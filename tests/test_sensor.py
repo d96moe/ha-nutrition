@@ -165,3 +165,14 @@ async def test_remaining_fraction_dst(hass):
 
 def test_budget_left_formula():
     assert budget_left(burn=1500, bmr=1800, fraction=0.25, deficit=500, intake=640) == 810
+
+
+async def test_daily_totals_have_state_class_total_with_reset(hass, entry):
+    """Like a 'rain today' sensor: the recorder keeps their statistics on the sensors."""
+    midnight = datetime.fromisoformat("2026-11-08T23:00:00+00:00")  # 2026-11-09 00:00 Stockholm (a Monday)
+    for name in ("intake_today", "protein_today", "saturated_fat_today", "alcohol_today", "alcohol_this_week"):
+        attrs = s(hass, name).attributes
+        assert attrs["state_class"] == "total", name
+        assert datetime.fromisoformat(attrs["last_reset"]) == midnight, name
+    for name in ("net_today", "budget_left_today", "protein_left_today", "to_target_weight"):
+        assert "state_class" not in s(hass, name).attributes, name  # not totals

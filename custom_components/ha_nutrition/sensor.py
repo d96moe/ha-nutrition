@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -125,14 +125,20 @@ class Spec:
     value: Callable[[Today], float | None]
     attrs: Callable[[Today], dict[str, Any]] = field(default=lambda t: {})
     digits: int = 1
+    #: Daily/weekly total: the day its count started (state_class total, last_reset).
+    reset: Callable[[Today], date] | None = None
+
+
+def _day(t: Today) -> date:
+    return t.day
 
 
 SENSORS = (
-    Spec("intake_today", "kcal", lambda t: t.totals.kcal, digits=0),
-    Spec("protein_today", "g", lambda t: t.totals.protein_g),
-    Spec("sat_fat_today", "g", lambda t: t.totals.sat_fat_g),
-    Spec("alcohol_today", "units", lambda t: t.totals.alcohol_units),
-    Spec("alcohol_week", "units", lambda t: t.week_alcohol, _week_attrs),
+    Spec("intake_today", "kcal", lambda t: t.totals.kcal, digits=0, reset=_day),
+    Spec("protein_today", "g", lambda t: t.totals.protein_g, reset=_day),
+    Spec("sat_fat_today", "g", lambda t: t.totals.sat_fat_g, reset=_day),
+    Spec("alcohol_today", "units", lambda t: t.totals.alcohol_units, reset=_day),
+    Spec("alcohol_week", "units", lambda t: t.week_alcohol, _week_attrs, reset=lambda t: t.week_start),
     Spec("net_today", "kcal", _net, digits=0),
     Spec("budget_left_today", "kcal", _budget,
          lambda t: {"forecast": True, "projected_burn": _r(_projected_burn(t), 0)}, digits=0),
@@ -152,7 +158,17 @@ class NutritionSensor(NutritionEntity, SensorEntity):
         super().__init__(entry, spec.key)
         self.spec = spec
         self._attr_native_unit_of_measurement = spec.unit
+        if spec.reset is not None:
+            # A total that starts over (at midnight, or Monday for the week), like a
+            # "rain today" sensor: the recorder keeps its statistics on this sensor.
+            self._attr_state_class = SensorStateClass.TOTAL
         self._today: Today | None = None
+
+    @property
+    def last_reset(self) -> datetime | None:
+        if self.spec.reset is None or self._today is None:
+            return None
+        return dt_util.start_of_local_day(self.spec.reset(self._today))
 
     def _compute(self) -> Today:
         now = dt_util.now()

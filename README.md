@@ -168,8 +168,11 @@ chart_type: bar
 days_to_show: 30
 ```
 
-The *today* sensors have no long-term statistics of their own: they only describe
-today, and past days are logged into the statistics above instead.
+The *today* sensors (intake, protein, saturated fat, alcohol today, and alcohol this
+week) are totals that start over at local midnight (the week on Monday),
+`state_class: total`, like a "rain today" sensor. Home Assistant keeps their own
+statistics from the day you install the integration. Days logged or corrected
+afterwards for the past are only in the `ha_nutrition:*` statistics above.
 
 ## Recorder
 

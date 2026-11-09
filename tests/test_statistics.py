@@ -114,3 +114,13 @@ async def test_local_day_grouping(hass, tz):
         {statistic_id("kcal")}, "day", None, {"change"},
     )
     assert [r["change"] for r in result[statistic_id("kcal")]] == [400, 120]
+
+
+async def test_day_bucket_stays_on_its_local_day_far_east(hass):
+    from homeassistant.util import dt as dt_util
+
+    await hass.config.async_set_time_zone("Pacific/Auckland")  # UTC+13 in November
+    for day in (date(2026, 11, 6), date(2026, 6, 6)):
+        assert dt_util.as_local(day_bucket(day)).date() == day
+    await hass.config.async_set_time_zone("Europe/Stockholm")
+    assert day_bucket(A) == datetime(2026, 11, 7, 12, tzinfo=UTC)  # unchanged

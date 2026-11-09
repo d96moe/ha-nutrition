@@ -22,6 +22,7 @@ from homeassistant.components.recorder.models import StatisticData, StatisticMea
 from homeassistant.components.recorder.statistics import async_add_external_statistics, get_last_statistics
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
+from homeassistant.util import dt as dt_util
 
 from .const import CATEGORIES, DOMAIN
 from .models import FoodEntry
@@ -49,7 +50,13 @@ def statistic_id(key: str) -> str:
 
 
 def day_bucket(day: date) -> datetime:
-    return datetime.combine(day, time(12), tzinfo=UTC)
+    """12:00 UTC, which is on the same local day from UTC-11 to UTC+11. Further east
+    or west it would land on another local day; there, local noon (on the hour)."""
+    noon_utc = datetime.combine(day, time(12), tzinfo=UTC)
+    if dt_util.as_local(noon_utc).date() == day:
+        return noon_utc
+    local_noon = datetime.combine(day, time(12), tzinfo=dt_util.get_default_time_zone())
+    return dt_util.as_utc(local_noon).replace(minute=0, second=0, microsecond=0)
 
 
 def build_series(entries: Iterable[FoodEntry]) -> Series:
