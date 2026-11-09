@@ -1,8 +1,9 @@
 # Nutrition for Home Assistant
 
-A custom integration that keeps a **food log in Home Assistant**. An AI agent such as
-claude.ai logs what you eat over MCP ("porridge for breakfast, chicken stew for lunch,
-two glasses of wine"), or automations call its services. You get today's intake,
+A custom integration that keeps a **food log in Home Assistant**. Entries come in
+through its services (automations, scripts, Developer tools) or, if you connect one,
+from an AI agent over MCP that turns "porridge for breakfast, chicken stew for lunch,
+two glasses of wine" into entries. You get today's intake,
 protein and alcohol as sensors, net balance and budget left against your calorie burn,
 daily totals as long-term statistics, and goals you can change from a dashboard.
 
@@ -80,24 +81,31 @@ connected to that URL sees these tools and nothing else in Home Assistant:
 | `get_nutrition` | Totals per day, week or month between two dates, per category, with notes, burn and net; which days are logged; optionally every entry with its id. |
 | `get_goals` / `set_goals` | Reads or changes the goals. |
 
-### Connecting claude.ai
+### Connecting an AI agent (optional)
 
-You need Home Assistant Cloud (Nabu Casa) remote access, or another public HTTPS
-address for Home Assistant.
+Using the API is optional; the services do the same. If you want an AI agent or
+assistant to log food and answer questions about it, connect any client that
+supports remote MCP servers to the API's URL:
 
 1. In Home Assistant, open **Settings → AI**. Under *Model Context Protocol →
    Individual URLs*, **Nutrition** is listed. Copy its URL.
-2. In claude.ai, open **Settings → Connectors → Add custom connector** and paste the
-   URL with your remote address: `https://<your-id>.ui.nabu.casa/api/mcp/ha_nutrition`.
-3. Sign in to Home Assistant in the window that opens.
+2. Add that URL as an MCP server in your client. A client outside your home network
+   needs Home Assistant's remote address, for example
+   `https://<your-id>.ui.nabu.casa/api/mcp/ha_nutrition` with Home Assistant Cloud
+   (Nabu Casa), or another public HTTPS address.
+3. Sign in to Home Assistant when the client asks.
 
 Home Assistant only allows **administrators** to use the individual API URLs, so sign
-in with an admin user. The connector can only call the tools above; the sign-in
-token, however, is an ordinary Home Assistant token for that user.
+in with an admin user. Through that URL the client can only call the tools above; the
+sign-in token, however, is an ordinary Home Assistant token for that user.
 
-In a claude.ai project, tell the project to log each meal with `log_food`. The API's
-own instructions already tell the agent how to pick categories, to split a message
-into one entry per item, and to send a `request_id`.
+The API's own instructions tell the agent how to pick categories, to split a message
+into one entry per item, and to send a `request_id`. In your agent's instructions,
+ask it to log what you tell it you ate.
+
+For example, in **claude.ai**: open *Settings → Connectors → Add custom connector*,
+paste the remote URL and sign in to Home Assistant; then, in a project's
+instructions, ask it to log each meal with `log_food`.
 
 ### Safe to retry, hard to corrupt
 
@@ -204,7 +212,7 @@ python -m venv .venv
 .venv/bin/python -m pytest tests --timeout 30
 ```
 
-The Home Assistant test plugin needs Linux. See [ci/README.md](ci/README.md).
+The Home Assistant test plugin needs Linux, macOS or WSL. See [ci/README.md](ci/README.md).
 
 ## License
 

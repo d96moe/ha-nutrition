@@ -1,7 +1,7 @@
 """LLM API "Nutrition": food-logging tools for AI agents.
 
 Home Assistant's MCP server publishes every registered LLM API at its own URL,
-/api/mcp/<api id>, so an agent such as claude.ai can be given this API alone: it
+/api/mcp/<api id>, so an MCP client can be given this API alone: it
 sees the food log and goals and nothing else in Home Assistant.
 """
 from __future__ import annotations

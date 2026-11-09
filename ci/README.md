@@ -1,16 +1,32 @@
-# CI
+# Testing and CI
 
-## Jobs (Jenkins on LXC 200)
+## Running the tests
 
-| Job | File | What it does |
-|---|---|---|
-| `ha-nutrition` | `ci/Jenkinsfile` | Lint (ruff), the full pytest suite in a Python 3.14 venv on the Jenkins agent (`BRANCH` parameter, `--timeout 30` per test), then a zero-skip gate. |
+You need Linux, macOS or WSL (see the note on Windows below) and a Python version
+supported by the current Home Assistant release (CI uses 3.14).
 
-## Notes
+```
+python3 -m venv .venv
+.venv/bin/pip install -r requirements_test.txt
+.venv/bin/ruff check --select F,E,W,B,I,UP --ignore E501 custom_components tests
+.venv/bin/python -m pytest tests --timeout 30
+```
 
-- **Tests need Linux.** `pytest-homeassistant-custom-component` imports
-  `homeassistant.runner`, which needs `fcntl`, so the tests do not run on Windows.
-  The pure model tests run anywhere with the plugin turned off:
+The suite must pass with **zero skipped tests**: a skip is a false green.
+
+## CI
+
+`ci/Jenkinsfile` is the maintainer's Jenkins pipeline. It does exactly the steps above
+in a fresh venv (lint, the full suite with a JUnit report, then a gate that fails the
+build if any test was skipped), for the branch given in its `BRANCH` parameter. It
+expects an agent with Python 3.14 at `/usr/local/bin/python3.14`; you don't need
+Jenkins to work on the integration.
+
+## Notes for contributors
+
+- **Windows.** `pytest-homeassistant-custom-component` imports
+  `homeassistant.runner`, which needs `fcntl`, so the Home Assistant tests don't run
+  on Windows; use WSL. The pure model tests run anywhere with the plugin turned off:
   `python -m pytest tests/test_models.py -p no:homeassistant`.
 - **Every test uses the recorder.** The integration depends on `recorder`, so
   `tests/conftest.py` requests `recorder_mock` before anything creates `hass`.
@@ -18,11 +34,9 @@
 - **Statistics tests use the real test recorder**, not mocks: they write rows and
   read them back with `statistics_during_period`, which also proves that clearing a
   statistic and rewriting it happen in the right order.
-- **Zero-skip gate.** A skipped test is a false green, so the build fails if
-  `test-results.xml` reports any skips.
 - **The clock is frozen** in most tests (`freezer`, 2026-11-09 11:00 Stockholm).
   `asyncio.sleep(x)` with x > 0 then never returns; use `asyncio.sleep(0)` loops
-  (`spin()` in `tests/conftest.py`). Run with `--timeout 30` so a hang shows at once.
+  (`spin()` in `tests/conftest.py`). `--timeout 30` makes a hang show up at once.
 - **LLM API tests call the tools directly**, with the schema-validated arguments,
   not through `APIInstance.async_call_tool`: that imports the conversation
   integration, which needs `hassil`, not installed in the test venv. They need
