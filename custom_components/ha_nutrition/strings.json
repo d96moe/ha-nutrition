@@ -1,0 +1,64 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Nutrition",
+        "description": "Food intake is logged by an AI agent (the Nutrition MCP API) or by the ha_nutrition services. Optionally pick where calorie burn, BMR and weight come from, for net balance, budget left and distance to target weight. The Samsung Health sensors are pre-filled when that integration is set up.",
+        "data": {
+          "burn_entity": "Calorie burn today",
+          "bmr_entity": "BMR",
+          "weight_entity": "Weight",
+          "burn_statistic": "Burn statistic for history"
+        },
+        "data_description": {
+          "burn_entity": "A sensor with today's total burn so far (kcal), from any integration.",
+          "bmr_entity": "A sensor with your basal metabolic rate (kcal/day), used to forecast the rest of the day.",
+          "weight_entity": "A sensor with your current weight (kg).",
+          "burn_statistic": "Optional statistic id of daily burn, for burn and net in past days. Leave empty to use the burn sensor's own statistics (sensors with state_class total or total_increasing)."
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Nutrition is already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Nutrition",
+        "data": {
+          "burn_entity": "Calorie burn today",
+          "bmr_entity": "BMR",
+          "weight_entity": "Weight",
+          "burn_statistic": "Burn statistic for history"
+        },
+        "data_description": {
+          "burn_entity": "A sensor with today's total burn so far (kcal).",
+          "bmr_entity": "A sensor with your basal metabolic rate (kcal/day).",
+          "weight_entity": "A sensor with your current weight (kg).",
+          "burn_statistic": "Optional. Empty: the burn sensor's own statistics are used."
+        }
+      }
+    }
+  },
+  "entity": {
+    "number": {
+      "deficit_target": { "name": "Deficit target" },
+      "protein_floor": { "name": "Protein floor" },
+      "protein_ceiling": { "name": "Protein ceiling" },
+      "target_weight": { "name": "Target weight" },
+      "alcohol_limit_week": { "name": "Alcohol limit per week" }
+    },
+    "sensor": {
+      "intake_today": { "name": "Intake today" },
+      "protein_today": { "name": "Protein today" },
+      "sat_fat_today": { "name": "Saturated fat today" },
+      "alcohol_today": { "name": "Alcohol today" },
+      "alcohol_week": { "name": "Alcohol this week" },
+      "net_today": { "name": "Net today" },
+      "budget_left_today": { "name": "Budget left today" },
+      "protein_left_today": { "name": "Protein left today" },
+      "to_target_weight": { "name": "To target weight" }
+    }
+  }
+}

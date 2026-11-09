@@ -1,0 +1,14 @@
+{
+  "domain": "ha_nutrition",
+  "name": "Nutrition",
+  "codeowners": ["@d96moe"],
+  "config_flow": true,
+  "dependencies": ["recorder"],
+  "documentation": "https://github.com/d96moe/ha-nutrition",
+  "integration_type": "service",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/d96moe/ha-nutrition/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}

@@ -1,0 +1,120 @@
+log_food:
+  name: Log food
+  description: Add one or more food entries for one day. Returns the stored entries and the day's totals.
+  fields:
+    date:
+      name: Date
+      description: YYYY-MM-DD, local time; default today. Past days are allowed, future days are not.
+      example: "2026-11-08"
+      selector:
+        text:
+    entries:
+      name: Entries
+      description: >-
+        List of entries: category (breakfast, lunch, dinner, snack, drink, supplement, other),
+        description, kcal, and optionally time (HH:MM), protein_g, sat_fat_g, alcohol_units.
+      required: true
+      example: '[{"category": "lunch", "description": "Chicken stew", "kcal": 650, "protein_g": 45}]'
+      selector:
+        object:
+    request_id:
+      name: Request id
+      description: Optional. A repeated call with the same id returns the first result and writes nothing.
+      selector:
+        text:
+update_entry:
+  name: Update entry
+  description: Change fields of one entry. Returns it and its day's totals.
+  fields:
+    entry_id:
+      name: Entry id
+      required: true
+      selector:
+        text:
+    date:
+      name: Date
+      selector:
+        text:
+    time:
+      name: Time
+      selector:
+        text:
+    category:
+      name: Category
+      selector:
+        select:
+          options: [breakfast, lunch, dinner, snack, drink, supplement, other]
+    description:
+      name: Description
+      selector:
+        text:
+    kcal:
+      name: kcal
+      selector:
+        number:
+          min: 0
+          max: 10000
+          mode: box
+    protein_g:
+      name: Protein (g)
+      selector:
+        number:
+          min: 0
+          max: 1000
+          mode: box
+    sat_fat_g:
+      name: Saturated fat (g)
+      selector:
+        number:
+          min: 0
+          max: 1000
+          mode: box
+    alcohol_units:
+      name: Alcohol (units)
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 0.5
+          mode: box
+delete_entry:
+  name: Delete entry
+  description: Delete one entry. Returns its day's new totals.
+  fields:
+    entry_id:
+      name: Entry id
+      required: true
+      selector:
+        text:
+set_day_note:
+  name: Set day note
+  description: Set or clear (empty note) a free-text note for a day.
+  fields:
+    date:
+      name: Date
+      required: true
+      selector:
+        text:
+    note:
+      name: Note
+      selector:
+        text:
+          multiline: true
+export:
+  name: Export log
+  description: Return the whole food log as JSON (for backups or moves).
+import:
+  name: Import log
+  description: Restore a log returned by Export. Refused if the log isn't empty, unless replace is on.
+  fields:
+    data:
+      name: Data
+      required: true
+      selector:
+        object:
+    replace:
+      name: Replace
+      description: Overwrite the current log.
+      default: false
+      selector:
+        boolean:
