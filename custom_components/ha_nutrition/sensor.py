@@ -157,7 +157,7 @@ SENSORS = (
     Spec("sat_fat_today", "g", lambda t: t.totals.sat_fat_g, reset=_day),
     Spec("alcohol_today", "units", lambda t: t.totals.alcohol_units, reset=_day),
     Spec("alcohol_week", "units", lambda t: t.week_alcohol, _week_attrs, reset=lambda t: t.week_start),
-    Spec("net_today", "kcal", _net, digits=0),
+    Spec("net_today", "kcal", _net, digits=0, reset=_day),
     Spec("budget_left_today", "kcal", _budget,
          lambda t: {"forecast": True, "projected_burn": _r(_projected_burn(t), 0)}, digits=0),
     Spec("protein_left_today", "g", _protein_left),

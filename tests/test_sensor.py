@@ -194,5 +194,5 @@ async def test_daily_totals_have_state_class_total_with_reset(hass, entry):
         attrs = s(hass, name).attributes
         assert attrs["state_class"] == "total", name
         assert datetime.fromisoformat(attrs["last_reset"]) == midnight, name
-    for name in ("net_today", "budget_left_today", "protein_left_today", "to_target_weight"):
+    for name in ("budget_left_today", "protein_left_today", "to_target_weight"):
         assert "state_class" not in s(hass, name).attributes, name  # not totals
