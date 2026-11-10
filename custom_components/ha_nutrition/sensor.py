@@ -1,7 +1,8 @@
 """Sensors for today (local calendar day; they start over at local midnight).
 
-No state_class: history lives in the external statistics (ha_nutrition:*), which
-past days can be logged into; the sensors' own statistics would break on that.
+Intake, protein, saturated fat and alcohol today are totals (state_class total,
+reset at midnight): the recorder compiles their statistics, and every logged day's
+history is reconciled onto them (daily_history.py, sensor_history.py).
 Sensors needing a source entity or a goal that is missing or unset are
 unavailable rather than guessing.
 """
@@ -32,6 +33,8 @@ from .number import goal
 if TYPE_CHECKING:
     from . import NutritionConfigEntry
 
+ATTR_ENTRIES_MAX = 50
+ATTR_TEXT_MAX = 80
 REFRESH = timedelta(minutes=5)  # budget left moves with the clock
 
 
@@ -116,11 +119,13 @@ def _intake_attrs(t: Today) -> dict[str, Any]:
     """What today's intake is made of; recorded with the state (a few kB a day)."""
     return {
         "by_category": {c: round(v, 1) for c, v in t.totals.kcal_by_category.items()},
+        # Capped: the recorder drops all attributes of a state above 16 kB.
         "entries": [
             {"time": e.time.strftime("%H:%M") if e.time else None, "category": e.category,
-             "description": e.description, "kcal": round(e.kcal, 1)}
-            for e in t.entries
+             "description": e.description[:ATTR_TEXT_MAX], "kcal": round(e.kcal, 1)}
+            for e in t.entries[:ATTR_ENTRIES_MAX]
         ],
+        "entries_total": len(t.entries),
     }
 
 

@@ -142,3 +142,32 @@ def test_entities_opt_in_to_in_place_entity_id_changes():
     for cls in (NutritionSensor, GoalNumber):
         assert "async_added_to_hass" in cls.__dict__
         assert "async_entity_id_changed" in cls.__dict__, cls.__name__
+
+
+async def test_repair_requires_all_four_sensors_verified(hass):
+    from custom_components.ha_nutrition.sensor_history import SyncResult
+
+    meta = StatisticMetaData(mean_type=StatisticMeanType.NONE, has_sum=True, name="x", source=DOMAIN,
+                             statistic_id="ha_nutrition:kcal", unit_class=None, unit_of_measurement="kcal")
+    async_add_external_statistics(hass, meta, [StatisticData(start=datetime(2026, 1, 1, 12, tzinfo=UTC),
+                                                             state=1, sum=1)])
+    await async_wait_recording_done(hass)
+    three = {"kcal": SyncResult(), "protein": SyncResult(), "sat_fat": SyncResult()}
+    await repairs.async_check_legacy(hass, three)  # alcohol today missing (disabled?)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, repairs.ISSUE_ID) is None
+    await repairs.async_check_legacy(hass, {**three, "alcohol": SyncResult()})
+    assert ir.async_get(hass).async_get_issue(DOMAIN, repairs.ISSUE_ID) is not None
+
+
+async def test_intake_attributes_stay_small(hass, entry):
+    """The recorder drops all attributes above 16 kB: cap them."""
+    many = [{"category": "snack", "description": "x" * 400, "kcal": 1, "time": f"{h:02d}:{m:02d}"}
+            for h in range(10, 13) for m in range(0, 60, 3)]  # 60 entries
+    await _log(hass, None, many[:50])
+    await _log(hass, None, many[50:])
+    attrs = hass.states.get(INTAKE).attributes
+    assert len(attrs["entries"]) == 50
+    assert all(len(e["description"]) <= 80 for e in attrs["entries"])
+    assert attrs["entries_total"] == 60
+    import json
+    assert len(json.dumps(dict(attrs))) < 16000

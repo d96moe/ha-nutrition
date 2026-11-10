@@ -23,6 +23,8 @@ from .statistics import STATS, statistic_id
 
 ISSUE_ID = "legacy_statistics"
 LEGACY_IDS = [statistic_id(key) for key in STATS]
+#: The today sensors whose history replaces the legacy series: all must be verified.
+LEGACY_KEYS = ("kcal", "protein", "sat_fat", "alcohol")
 
 
 async def _async_existing(hass: HomeAssistant) -> list[str]:
@@ -34,8 +36,8 @@ async def _async_existing(hass: HomeAssistant) -> list[str]:
 
 async def async_check_legacy(hass: HomeAssistant, results: Mapping[str, SyncResult]) -> None:
     """Offer the removal once every daily sensor was checked and needed no change."""
-    if not results or not all(r.in_sync for r in results.values()):
-        return
+    if not all(key in results and results[key].in_sync for key in LEGACY_KEYS):
+        return  # a missing (disabled) sensor doesn't count as verified
     if not await _async_existing(hass):
         ir.async_delete_issue(hass, DOMAIN, ISSUE_ID)
         return

@@ -181,7 +181,8 @@ days_to_show: 30
 ```
 
 *Intake today* also has the attributes `by_category` (today's kcal per category) and
-`entries` (today's entries: time, category, description, kcal). They are recorded
+`entries` (today's entries: time, category, description, kcal; at most 50, texts cut at 80
+characters, `entries_total` says how many there are). They are recorded
 with its state, so the History panel keeps them as long as the recorder keeps states.
 The breakdown for any period is always available from `get_nutrition`.
 
