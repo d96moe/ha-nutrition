@@ -118,3 +118,9 @@ import:
       default: false
       selector:
         boolean:
+remove_legacy_statistics:
+  name: Remove old daily statistics
+  description: >-
+    Delete the daily statistics of versions before 0.2.0 (ha_nutrition:kcal, protein,
+    sat_fat, alcohol and the per-category kcal_… statistics). The history now lives on the today sensors.
+    Take a backup first: this can't be undone.

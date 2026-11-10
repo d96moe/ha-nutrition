@@ -34,7 +34,7 @@ async def _samsung_burn_statistic(hass):
 
 
 async def test_prefills_samsung_entities(hass):
-    await _samsung_burn_statistic(hass)
+    await _samsung_burn_statistic(hass)  # a pre-0.5.0 Samsung Health statistic: not suggested any more
     reg = er.async_get(hass)
     ids = {
         key: reg.async_get_or_create("sensor", "ha_samsung_health", f"abc_{key}",
@@ -47,7 +47,8 @@ async def test_prefills_samsung_entities(hass):
     assert _suggested(schema, CONF_BURN_ENTITY) == ids["total_calories"]
     assert _suggested(schema, CONF_BMR_ENTITY) == ids["bmr"]
     assert _suggested(schema, CONF_WEIGHT_ENTITY) == ids["weight"]
-    assert _suggested(schema, CONF_BURN_STATISTIC) == DEFAULT_BURN_STATISTIC
+    # the burn sensor's own statistics carry its history now
+    assert _suggested(schema, CONF_BURN_STATISTIC) is None
 
     user_input = {CONF_BURN_ENTITY: ids["total_calories"], CONF_BURN_STATISTIC: DEFAULT_BURN_STATISTIC}
     result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input)

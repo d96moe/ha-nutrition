@@ -8,10 +8,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import date, timedelta
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.recorder import get_instance
-from homeassistant.components.recorder.statistics import statistics_during_period
+from homeassistant.components.recorder.statistics import get_metadata, statistics_during_period
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import llm
@@ -116,15 +117,21 @@ async def async_daily_burn(hass: HomeAssistant, statistic_id: str | None, start:
     }
 
 
-def burn_source(hass: HomeAssistant, options: Mapping[str, Any]) -> str | None:
-    """Statistic id for burn per day: the configured one, else the burn sensor's own.
+async def async_burn_source(hass: HomeAssistant, options: Mapping[str, Any]) -> str | None:
+    """Statistic id for burn per day: the configured one if it exists, else the burn sensor's own.
 
     A daily-total sensor with state_class total/total_increasing (as most health
     integrations have) gets long-term statistics from the recorder, which handle
-    its midnight reset, so its daily change is the day's burn.
+    its midnight reset, so its daily change is the day's burn. A configured
+    statistic that no longer exists (e.g. Samsung Health's pre-0.5.0
+    ha_samsung_health:total_calories) falls back to the sensor.
     """
     if statistic := options.get(CONF_BURN_STATISTIC):
-        return statistic
+        metadata = await get_instance(hass).async_add_executor_job(
+            partial(get_metadata, hass, statistic_ids={statistic})
+        )
+        if metadata:
+            return statistic
     entity_id = options.get(CONF_BURN_ENTITY)
     state = hass.states.get(entity_id) if entity_id else None
     if state is not None and state.attributes.get("state_class") in ("total", "total_increasing"):
@@ -259,7 +266,7 @@ class GetNutritionTool(_Tool):
         if (end - start).days + 1 > MAX_DAYS:
             raise ToolError(f"at most {MAX_DAYS} days per call; split the range")
         period = args.get("period", "day")
-        statistic = burn_source(hass, self.entry.options)
+        statistic = await async_burn_source(hass, self.entry.options)
         try:
             burn = await async_daily_burn(hass, statistic, start, end)
         except HomeAssistantError:

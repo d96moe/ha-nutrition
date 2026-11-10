@@ -26,7 +26,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import CONF_BMR_ENTITY, CONF_BURN_ENTITY, CONF_WEIGHT_ENTITY, SIGNAL_UPDATED
 from .entity import NutritionEntity
-from .models import DayTotals, day_totals
+from .models import DayTotals, FoodEntry, day_totals
 from .number import goal
 
 if TYPE_CHECKING:
@@ -79,6 +79,7 @@ class Today:
     bmr: float | None
     weight: float | None
     goals: Callable[[str], float | None]
+    entries: list[FoodEntry] = field(default_factory=list)
 
 
 def _r(value: float | None, digits: int = 1) -> float | None:
@@ -111,6 +112,18 @@ def _to_target(t: Today) -> float | None:
     return None if target is None or t.weight is None else t.weight - target
 
 
+def _intake_attrs(t: Today) -> dict[str, Any]:
+    """What today's intake is made of; recorded with the state (a few kB a day)."""
+    return {
+        "by_category": {c: round(v, 1) for c, v in t.totals.kcal_by_category.items()},
+        "entries": [
+            {"time": e.time.strftime("%H:%M") if e.time else None, "category": e.category,
+             "description": e.description, "kcal": round(e.kcal, 1)}
+            for e in t.entries
+        ],
+    }
+
+
 def _week_attrs(t: Today) -> dict[str, Any]:
     attrs: dict[str, Any] = {"week_start": t.week_start.isoformat()}
     if (limit := t.goals("alcohol_limit_week")) is not None:
@@ -134,7 +147,7 @@ def _day(t: Today) -> date:
 
 
 SENSORS = (
-    Spec("intake_today", "kcal", lambda t: t.totals.kcal, digits=0, reset=_day),
+    Spec("intake_today", "kcal", lambda t: t.totals.kcal, _intake_attrs, digits=0, reset=_day),
     Spec("protein_today", "g", lambda t: t.totals.protein_g, reset=_day),
     Spec("sat_fat_today", "g", lambda t: t.totals.sat_fat_g, reset=_day),
     Spec("alcohol_today", "units", lambda t: t.totals.alcohol_units, reset=_day),
@@ -179,13 +192,14 @@ class NutritionSensor(NutritionEntity, SensorEntity):
         return Today(
             now=now,
             day=today,
-            totals=day_totals(today, store.entries_on(today)),
+            totals=day_totals(today, entries := store.entries_on(today)),
             week_start=week_start,
             week_alcohol=sum(e.alcohol_units or 0.0 for e in store.entries_between(week_start, today)),
             burn=source_value(self.hass, options.get(CONF_BURN_ENTITY), today),
             bmr=source_value(self.hass, options.get(CONF_BMR_ENTITY), None),
             weight=source_value(self.hass, options.get(CONF_WEIGHT_ENTITY), None),
             goals=lambda key: goal(self.entry, key),
+            entries=entries,
         )
 
     @callback
@@ -200,6 +214,12 @@ class NutritionSensor(NutritionEntity, SensorEntity):
     @callback
     def _source_changed(self, event: Event[EventStateChangedData]) -> None:
         self._refresh()
+
+    async def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Renamed in place (HA 2026.11+) instead of removed and re-added. Nothing
+        here depends on this entity's own id, so there is nothing to update."""
+        if (parent := getattr(super(), "async_entity_id_changed", None)) is not None:
+            await parent(old_entity_id)
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()

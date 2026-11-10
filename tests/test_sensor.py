@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 import pytest
 from homeassistant.const import STATE_UNAVAILABLE
@@ -145,14 +145,34 @@ async def test_restored_goals_available_at_once(hass, freezer, options):
     assert value(hass, "protein_left_today") == 150
 
 
-async def test_empty_log_at_startup_keeps_statistics(hass, entry, hass_storage):
-    await log(hass, [{"category": "lunch", "description": "x", "kcal": 500}])
+async def test_empty_log_at_startup_keeps_the_sensors_history(hass, entry, hass_storage, freezer):
+    """A lost or corrupt log file must not set every logged day's history to 0."""
+    from datetime import timedelta
+
+    from pytest_homeassistant_custom_component.common import async_fire_time_changed
+    from pytest_homeassistant_custom_component.components.recorder.common import (
+        async_wait_recording_done,
+        do_adhoc_statistics,
+    )
+
+    from .test_daily_history import INTAKE, NOW, _changes
+
+    freezer.move_to(NOW + timedelta(minutes=6))
+    do_adhoc_statistics(hass, start=NOW)
+    await async_wait_recording_done(hass)
+    await log(hass, [{"category": "lunch", "description": "x", "kcal": 500}], day="2026-11-08")
     await hass.async_block_till_done(wait_background_tasks=True)
+    await async_wait_recording_done(hass)
+    assert (await _changes(hass, INTAKE))[date(2026, 11, 8)] == 500
     await hass.config_entries.async_unload(entry.entry_id)
     del hass_storage["ha_nutrition.log"]  # e.g. a corrupt file HA moved aside
     assert await hass.config_entries.async_setup(entry.entry_id)
+    later = NOW + timedelta(hours=1, minutes=10)
+    freezer.move_to(later)
+    async_fire_time_changed(hass, later)  # the hourly sync runs
     await hass.async_block_till_done(wait_background_tasks=True)
-    assert hass_storage["ha_nutrition.statistics"]["data"]["written"]["kcal"] == {"2026-11-09": 500.0}
+    await async_wait_recording_done(hass)
+    assert (await _changes(hass, INTAKE))[date(2026, 11, 8)] == 500
 
 
 async def test_remaining_fraction_dst(hass):

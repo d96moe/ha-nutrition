@@ -73,6 +73,12 @@ class GoalNumber(NutritionEntity, RestoreNumber):
         self._attr_native_step = spec.step
         self._attr_native_value = 0.0
 
+    async def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Renamed in place (HA 2026.11+) instead of removed and re-added. Nothing
+        here depends on this entity's own id, so there is nothing to update."""
+        if (parent := getattr(super(), "async_entity_id_changed", None)) is not None:
+            await parent(old_entity_id)
+
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         if (last := await self.async_get_last_number_data()) is not None and last.native_value is not None:

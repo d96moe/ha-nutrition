@@ -43,22 +43,64 @@
   },
   "entity": {
     "number": {
-      "deficit_target": { "name": "Deficit target" },
-      "protein_floor": { "name": "Protein floor" },
-      "protein_ceiling": { "name": "Protein ceiling" },
-      "target_weight": { "name": "Target weight" },
-      "alcohol_limit_week": { "name": "Alcohol limit per week" }
+      "deficit_target": {
+        "name": "Deficit target"
+      },
+      "protein_floor": {
+        "name": "Protein floor"
+      },
+      "protein_ceiling": {
+        "name": "Protein ceiling"
+      },
+      "target_weight": {
+        "name": "Target weight"
+      },
+      "alcohol_limit_week": {
+        "name": "Alcohol limit per week"
+      }
     },
     "sensor": {
-      "intake_today": { "name": "Intake today" },
-      "protein_today": { "name": "Protein today" },
-      "sat_fat_today": { "name": "Saturated fat today" },
-      "alcohol_today": { "name": "Alcohol today" },
-      "alcohol_week": { "name": "Alcohol this week" },
-      "net_today": { "name": "Net today" },
-      "budget_left_today": { "name": "Budget left today" },
-      "protein_left_today": { "name": "Protein left today" },
-      "to_target_weight": { "name": "To target weight" }
+      "intake_today": {
+        "name": "Intake today"
+      },
+      "protein_today": {
+        "name": "Protein today"
+      },
+      "sat_fat_today": {
+        "name": "Saturated fat today"
+      },
+      "alcohol_today": {
+        "name": "Alcohol today"
+      },
+      "alcohol_week": {
+        "name": "Alcohol this week"
+      },
+      "net_today": {
+        "name": "Net today"
+      },
+      "budget_left_today": {
+        "name": "Budget left today"
+      },
+      "protein_left_today": {
+        "name": "Protein left today"
+      },
+      "to_target_weight": {
+        "name": "To target weight"
+      }
     }
-  }
+  },
+  "issues": {
+    "legacy_statistics": {
+      "title": "Nutrition history moved to the sensors",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Remove the old daily statistics?",
+            "description": "Daily intake, protein, saturated fat and alcohol now live on the Nutrition today sensors themselves, with every logged day, and that history has been checked. The old statistics `ha_nutrition:kcal`, `ha_nutrition:protein`, `ha_nutrition:sat_fat`, `ha_nutrition:alcohol` and the per-category `ha_nutrition:kcal_…` statistics are no longer updated. The breakdown per category stays available from the log (get_nutrition) and today's on the Intake today sensor.\n\nTake a backup of Home Assistant first: removing them can't be undone."
+          }
+        }
+      }
+    }
+  },
+  "services": {}
 }

@@ -24,10 +24,6 @@ async def test_setup_unload_and_remove_keep_the_log(hass, entry, hass_storage):
     assert len(hass_storage[STORE_KEY]["data"]["entries"]) == 1  # deliberately kept
 
 
-async def test_write_triggers_statistics(hass, entry, hass_storage):
-    await _log(hass)
-    await hass.async_block_till_done(wait_background_tasks=True)
-    assert hass_storage["ha_nutrition.statistics"]["data"]["written"]["kcal"] == {"2026-11-09": 5.0}
 
 
 async def test_re_added_entry_sees_the_old_log(hass, entry):

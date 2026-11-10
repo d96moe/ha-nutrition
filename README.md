@@ -18,7 +18,7 @@ agent's job.
 | Balance | Net today, Budget left today | Need a burn sensor (and BMR + deficit goal for budget); see [Balance](#balance) |
 | Goals | Deficit target, Protein floor, Protein ceiling, Target weight, Alcohol limit per week | Number entities; **0 means not set** |
 | Progress | Protein left today, To target weight | Need the matching goal (and a weight sensor) |
-| History | Statistics `ha_nutrition:kcal`, `:protein`, `:sat_fat`, `:alcohol`, `:kcal_<category>` | One value per day; see [History](#history) |
+| History | On the today sensors themselves: every logged day, backfilled and corrected days included | See [History](#history) |
 | AI agents | LLM API *Nutrition* (MCP) | See [AI agents](#ai-agents-mcp-the-nutrition-api) |
 
 Every entry has a **category**: `breakfast`, `lunch`, `dinner`, `snack` (fika,
@@ -42,20 +42,20 @@ app's Health Connect sensors, a template sensor, ...).
 - **Burn today**: today's total calories burned so far (kcal).
 - **BMR**: basal metabolic rate (kcal/day), to forecast the rest of the day.
 - **Weight**: current weight (kg).
-- **Burn per day in the past** (for `get_nutrition`): the *burn statistic* option, if
-  set. Otherwise, if the burn sensor has `state_class` `total` or `total_increasing`
-  (most daily-total sensors do), its own long-term statistics are used. Otherwise
-  past days have no burn and no net.
+- **Burn per day in the past** (for `get_nutrition`): the burn sensor's own
+  long-term statistics, if it has `state_class` `total` or `total_increasing` (most
+  daily-total sensors do, Samsung Health's since 0.4.3). The *burn statistic* option
+  is only for a source whose history lives in another statistic; if that statistic
+  doesn't exist (any more), the sensor's own is used. Otherwise past days have no
+  burn and no net.
 - **Yesterday's value after midnight**: if the burn sensor has a `date` attribute,
   it must be today. If it hasn't, a value that hasn't changed since local midnight is
   taken as yesterday's. Either way net and budget are unavailable until the source
   updates, instead of showing a huge surplus. (Right after a Home Assistant restart
   a source's old value can look fresh until it updates.)
 
-The [Samsung Health](https://github.com/d96moe/ha-samsung-health) integration is
-pre-filled when it is set up: its burn, BMR and weight sensors, and its
-`ha_samsung_health:total_calories` statistic when that exists (its sensors reset at
-midnight without a `state_class`, so the statistic carries the history).
+The [Samsung Health](https://github.com/d96moe/ha-samsung-health) integration's burn,
+BMR and weight sensors are pre-filled when it is set up.
 
 ## Installation
 
@@ -120,8 +120,8 @@ instructions, ask it to log each meal with `log_food`.
   non-numeric or implausible value (over 10,000 kcal, 1,000 g protein or saturated
   fat, or 100 alcohol units per entry), a future date or an unknown field gives an
   error that says what's wrong, and nothing from that call is stored.
-- **An empty log at startup leaves the statistics alone.** If the log file were lost
-  or corrupt, the daily statistics are not cleared to match it.
+- **An empty log at startup leaves the history alone.** If the log file were lost
+  or corrupt, the sensors' history is not set to 0 to match it.
 
 ## Logging past days
 
@@ -150,17 +150,29 @@ unavailable.
 
 ## History
 
-Daily totals are long-term statistics, one value per day, for every day that has
-entries. A day without entries has no value, so *not logged* stays different from
-*ate nothing*. Logging, correcting or deleting a past day rewrites its statistics at
-once (deleting the last entry of a day removes that day's value). Show them as daily
-bars:
+Daily intake, protein, saturated fat and alcohol live on the *today* sensors
+themselves (intake, protein, saturated fat, alcohol today). They are totals that
+start over at local midnight (`state_class: total`), like a "rain today" sensor, and
+their statistics hold **every logged day**:
+
+- Today is the sensor's own, as you log.
+- Past days you log, backfill, correct or delete are put into the sensor's
+  statistics within the hour: a day the sensor recorded is corrected in place (its
+  sum is adjusted), a day before the sensor existed is added. Nothing is duplicated.
+- A brand-new sensor gets the history once the recorder has compiled it for the
+  first time (allow an hour after setup).
+- A day without entries has no value; a day whose entries were all deleted shows 0.
+- An empty log at startup (a lost or corrupt `.storage/ha_nutrition.log`) leaves
+  the history alone.
+
+Show them as daily bars, or build other totals with helpers (Utility Meter,
+Statistics), as with any sensor:
 
 ```yaml
 type: statistics-graph
 title: Intake per day
 entities:
-  - ha_nutrition:kcal
+  - sensor.nutrition_intake_today
 period: day
 stat_types:
   - change
@@ -168,11 +180,23 @@ chart_type: bar
 days_to_show: 30
 ```
 
-The *today* sensors (intake, protein, saturated fat, alcohol today, and alcohol this
-week) are totals that start over at local midnight (the week on Monday),
-`state_class: total`, like a "rain today" sensor. Home Assistant keeps their own
-statistics from the day you install the integration. Days logged or corrected
-afterwards for the past are only in the `ha_nutrition:*` statistics above.
+*Intake today* also has the attributes `by_category` (today's kcal per category) and
+`entries` (today's entries: time, category, description, kcal). They are recorded
+with its state, so the History panel keeps them as long as the recorder keeps states.
+The breakdown for any period is always available from `get_nutrition`.
+
+*Alcohol this week* is a weekly total (reset on Monday) without history of its own:
+use a helper or `get_nutrition` for weeks.
+
+### Old daily statistics
+
+Versions before 0.2.0 kept separate statistics (`ha_nutrition:kcal`, `:protein`,
+`:sat_fat`, `:alcohol`, `:kcal_<category>`). They are no longer updated. Once a sync
+has found every sensor's history complete, Home Assistant shows the repair
+*Nutrition history moved to the sensors* (Settings → System → Repairs); confirming
+it deletes them, as does the action `ha_nutrition.remove_legacy_statistics`.
+Nothing is deleted without one of these. **Take a backup first**: deleting statistics
+can't be undone.
 
 ## Recorder
 

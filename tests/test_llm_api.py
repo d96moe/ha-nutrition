@@ -155,3 +155,12 @@ async def test_set_goals_and_get_goals(hass, instance):
     cleared = await call(instance, "set_goals", target_weight=0)
     assert cleared["target_weight"]["value"] is None
     assert "max" in (await call(instance, "set_goals", deficit_target=5000))["error"]
+
+
+async def test_missing_configured_statistic_falls_back_to_the_burn_sensor(hass, entry, instance):
+    """e.g. the old ha_samsung_health:total_calories after it was removed (v0.5.0)."""
+    hass.config_entries.async_update_entry(entry, options={
+        CONF_BURN_STATISTIC: "ha_samsung_health:total_calories", CONF_BURN_ENTITY: "sensor.other_total_calories"})
+    hass.states.async_set("sensor.other_total_calories", "900", {"state_class": "total"})
+    data = await call(instance, "get_nutrition")
+    assert data["burn_source"] == "sensor.other_total_calories"
