@@ -89,8 +89,11 @@ async def test_no_start_weight_is_unavailable(hass, entry):
     assert float(hass.states.get(DEFICIT).state) == 1300
 
 
-async def test_start_weight_from_first_weighing(hass, entry):
-    await _weighing(hass, datetime(2026, 11, 7, 6, tzinfo=UTC), 91.0)
+async def test_start_weight_from_first_weighing(hass, entry, freezer):
+    freezer.move_to("2026-11-07T06:00:00+00:00")
+    hass.states.async_set(WEIGHT, "91.0", {"unit_of_measurement": "kg"})
+    await async_wait_recording_done(hass)
+    freezer.move_to("2026-11-09T10:00:00+00:00")
     await _setup_days(hass)
     await _goals(hass, plan_start_date="2026-11-07")  # start weight 0: first weighing on/after
     assert float(hass.states.get(EXPECTED).state) == pytest.approx(91 - 1300 / 7700, abs=0.01)
@@ -114,3 +117,26 @@ async def test_expected_weight_history(hass, entry):
     assert means[D(6)] == round(90 - 500 / 7700, 3)
     assert means[D(8)] == round(90 - 1800 / 7700, 3)
     assert D(9) not in means or means[D(9)] == round(90 - 1800 / 7700, 3)  # today only from the live sensor
+
+
+async def test_start_weight_is_the_first_weighing_after_start(hass, entry, freezer):
+    """Review #2: not the carried-forward hourly mean of an earlier weighing; kg from lb."""
+    freezer.move_to("2026-11-05T06:00:00+00:00")
+    hass.states.async_set(WEIGHT, "92.0", {"unit_of_measurement": "kg", "state_class": "measurement"})
+    freezer.move_to("2026-11-07T06:00:00+00:00")
+    hass.states.async_set(WEIGHT, "200.6", {"unit_of_measurement": "lb", "state_class": "measurement"})
+    await async_wait_recording_done(hass)
+    from custom_components.ha_nutrition.plan import async_start_weight
+    freezer.move_to("2026-11-09T10:00:00+00:00")
+    assert await async_start_weight(hass, WEIGHT, D(7)) == pytest.approx(200.6 * 0.45359237, abs=0.01)
+    assert await async_start_weight(hass, WEIGHT, D(9)) is None  # nothing on/after
+
+
+async def test_set_goals_validates_everything_first(hass, entry):
+    """Review #3: no half-applied call."""
+    instance = await llm.async_get_api(hass, DOMAIN, CONTEXT)
+    data = await call(instance, "set_goals", plan_start_date="2026-09-30", deficit_max=5000)
+    assert "deficit_max" in data["error"]
+    assert entry.runtime_data.plan_start is None
+    data = await call(instance, "set_goals", plan_start_date="2026-12-01")
+    assert "future" in data["error"]

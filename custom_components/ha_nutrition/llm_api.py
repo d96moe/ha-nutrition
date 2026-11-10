@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import llm
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util import dt as dt_util
@@ -314,17 +315,25 @@ class SetGoalsTool(_Tool):
     })
 
     async def _async_run(self, hass, args):
-        start: date | None = None
-        if "plan_start_date" in args:
+        # Validate everything first: a call either applies completely or not at all.
+        set_start, start = "plan_start_date" in args, None
+        if set_start:
             raw = args.pop("plan_start_date").strip()
             try:
                 start = date.fromisoformat(raw) if raw else None
             except ValueError as exc:
                 raise ToolError(f"plan_start_date must be YYYY-MM-DD or empty, got {raw!r}") from exc
-            async_dispatcher_send(hass, SIGNAL_PLAN_START, start)
+            if start and start > _today():
+                raise ToolError(f"plan_start_date {start.isoformat()} is in the future")
+            registry = er.async_get(hass)
+            date_entity = registry.async_get_entity_id("date", DOMAIN, f"{self.entry.entry_id}_plan_start_date")
+            if not date_entity or registry.async_get(date_entity).disabled_by:
+                raise ToolError("the Plan start date entity is disabled; enable it first")
         for key, value in args.items():
             if not 0 <= value <= GOALS[key].max:
                 raise ToolError(f"{key} must be between 0 and max {GOALS[key].max:g}, got {value}")
+        if set_start:
+            async_dispatcher_send(hass, SIGNAL_PLAN_START, start)
         entity_ids = goal_entity_ids(hass, self.entry)
         for key, value in args.items():
             await hass.services.async_call(

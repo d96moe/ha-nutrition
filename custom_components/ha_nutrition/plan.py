@@ -15,10 +15,13 @@ from datetime import date, datetime, timedelta
 from functools import partial
 
 from homeassistant.components.recorder import get_instance
+from homeassistant.components.recorder.history import get_significant_states
 from homeassistant.components.recorder.models import StatisticData, StatisticMeanType, StatisticMetaData
-from homeassistant.components.recorder.statistics import async_import_statistics, statistics_during_period
+from homeassistant.components.recorder.statistics import async_import_statistics
+from homeassistant.const import UnitOfMass
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
+from homeassistant.util.unit_conversion import MassConverter
 
 from .sensor_history import async_statistics_unit
 from .statistics import compiled_hours_end, day_bucket
@@ -62,15 +65,29 @@ def summarize(
 
 
 async def async_start_weight(hass: HomeAssistant, weight_entity: str | None, start: date) -> float | None:
-    """The first weighing on or after the start date, from the weight entity's statistics."""
+    """The first weighing on or after the start date (in kg), from the recorder's state history.
+
+    Not from hourly statistics: they carry the last value forward every hour, so the
+    first row after the start would be an earlier weighing.
+    """
     if not weight_entity:
         return None
-    rows = await get_instance(hass).async_add_executor_job(
-        partial(statistics_during_period, hass, dt_util.start_of_local_day(start), None,
-                {weight_entity}, "hour", None, {"mean"})
+    states = await get_instance(hass).async_add_executor_job(
+        partial(get_significant_states, hass, dt_util.start_of_local_day(start), dt_util.utcnow(),
+                [weight_entity], include_start_time_state=False, significant_changes_only=False)
     )
-    first = next((r["mean"] for r in rows.get(weight_entity, []) if r.get("mean") is not None), None)
-    return float(first) if first is not None else None
+    for state in states.get(weight_entity, []):
+        try:
+            value = float(state.state)
+        except (TypeError, ValueError):
+            continue
+        unit = state.attributes.get("unit_of_measurement", UnitOfMass.KILOGRAMS)
+        if unit == UnitOfMass.KILOGRAMS:
+            return value
+        if unit in MassConverter.VALID_UNITS:
+            return MassConverter.convert(value, unit, UnitOfMass.KILOGRAMS)
+        return None
+    return None
 
 
 class ExpectedWeightHistory:

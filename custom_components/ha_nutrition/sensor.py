@@ -167,7 +167,7 @@ SENSORS = (
          lambda t: {"forecast": True, "projected_burn": _r(_projected_burn(t), 0)}, digits=0),
     Spec("protein_left_today", "g", _protein_left),
     Spec("to_target_weight", "kg", _to_target, digits=2),
-    Spec("net_7_day_average", "kcal", lambda t: t.plan.avg_7 if t.plan else None, digits=0, measurement=True),
+    Spec("net_7_day_average", "kcal/d", lambda t: t.plan.avg_7 if t.plan else None, digits=0, measurement=True),
     Spec("deficit_since_start", "kcal", lambda t: t.plan.deficit_since_start if t.plan else None, digits=0,
          measurement=True),
     Spec("expected_weight", "kg", lambda t: t.plan.current_expected if t.plan else None, digits=2,

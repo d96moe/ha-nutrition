@@ -72,3 +72,14 @@ async def test_net_history_waits_for_burn(hass, entry, burn_live, freezer):
     async_fire_time_changed(hass, later)
     await _settle(hass)
     assert (await _changes(hass, NET))[date(2026, 11, 7)] == -1900
+
+
+async def test_unknown_burn_source_leaves_net_history_alone(hass, entry, burn_live, freezer):
+    """Review #1: e.g. Samsung Health not loaded yet at startup — must not zero every day."""
+    await _burn(hass, [(7, 2400)])
+    await _compile_once(hass, freezer)
+    await _log(hass, "2026-11-07", [LUNCH])
+    assert (await _changes(hass, NET))[date(2026, 11, 7)] == -1900
+    hass.config_entries.async_update_entry(entry, options={CONF_BURN_ENTITY: "sensor.not_there"})
+    await _log(hass, "2026-11-08", [LUNCH])  # a sync with no burn source
+    assert (await _changes(hass, NET))[date(2026, 11, 7)] == -1900

@@ -45,13 +45,18 @@ def unit_class(unit: str | None) -> str | None:
 async def async_daily_series(
     hass: HomeAssistant, entry: NutritionConfigEntry, now: datetime
 ) -> dict[str, dict[date, float]]:
-    """The log's daily totals per statistic key, plus "net" (intake − burn)."""
-    series = build_series(entry.runtime_data.store.all_entries())
+    """The log's daily totals per statistic key, plus "net" (intake − burn).
+
+    "net" is None when burn can't be read (no source, e.g. the burn integration not
+    loaded yet at startup, or no burn days at all): then nothing about net may be
+    changed, since an empty net would set every day's net history to 0.
+    """
+    series: dict[str, dict[date, float] | None] = dict(build_series(entry.runtime_data.store.all_entries()))
     series["net"] = {}
     if series["kcal"]:
         source = await async_burn_source(hass, entry.options)
         burn = await async_daily_burn(hass, source, min(series["kcal"]), dt_util.as_local(now).date())
-        series["net"] = net_truth(series["kcal"], burn)
+        series["net"] = net_truth(series["kcal"], burn) if burn else None
     return series
 
 
@@ -72,7 +77,11 @@ async def async_sync_sensor_history(
         if existing and existing[0] != unit:
             _LOGGER.warning("No history for %s: its statistics are in %s, not %s", entity_id, existing[0], unit)
             continue
+        if series.get(key) is None:
+            continue  # unknown this time (net without burn): leave its history alone
         results[key] = await async_sync_daily_history(
-            hass, entity_id, unit, existing[1] if existing else unit_class(unit), series[key], now
+            hass, entity_id, unit, existing[1] if existing else unit_class(unit), series[key], now,
+            # a burn statistic losing days must not zero their net
+            guard_removals=key == "net",
         )
     return results

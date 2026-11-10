@@ -80,12 +80,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: NutritionConfigEntry) ->
             now = dt_util.utcnow()
             try:
                 series = await async_daily_series(hass, entry, now)
+            except Exception:  # never let a statistics problem break logging
+                _LOGGER.exception("Reading the Nutrition daily totals failed")
+                return
+            try:
                 if data.history_armed:
                     results = await async_sync_sensor_history(hass, entry, series, now)
                     await async_check_legacy(hass, results)
-                await _async_update_plan(series["net"], now)
-            except Exception:  # never let a statistics problem break logging
+            except Exception:
                 _LOGGER.exception("Updating the Nutrition sensors' history failed")
+            try:
+                if series["net"] is not None:  # burn unknown: keep the plan values as they are
+                    await _async_update_plan(series["net"], now)
+            except Exception:
+                _LOGGER.exception("Updating the Nutrition plan values failed")
 
     async def _async_update_plan(net_by_day: dict[date, float], now) -> None:
         start = data.plan_start
@@ -94,8 +102,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: NutritionConfigEntry) ->
             start_weight = await async_start_weight(hass, entry.options.get(CONF_WEIGHT_ENTITY), start)
         data.plan = summarize(net_by_day, dt_util.as_local(now).date(), start, start_weight)
         async_dispatcher_send(hass, SIGNAL_PLAN_UPDATED)
-        entity_id = er.async_get(hass).async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_expected_weight")
-        if entity_id:
+        registry = er.async_get(hass)
+        entity_id = registry.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_expected_weight")
+        if entity_id and not registry.async_get(entity_id).disabled_by:
             await data.expected_history.async_write(hass, entity_id, data.plan.expected, now)
 
     @callback
