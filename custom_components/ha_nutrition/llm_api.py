@@ -12,10 +12,11 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import llm
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util import dt as dt_util
 
 from .burn import async_burn_source, async_daily_burn
-from .const import CATEGORIES, DOMAIN, SOURCE_LLM
+from .const import CATEGORIES, DOMAIN, SIGNAL_PLAN_START, SOURCE_LLM
 from .models import DayTotals, InvalidInput, day_totals, parse_date
 from .number import GOALS, goal, goal_entity_ids
 
@@ -107,7 +108,10 @@ def period_start(day: date, period: str) -> date:
 
 
 def goals_view(entry: NutritionConfigEntry) -> dict[str, Any]:
-    return {key: {"value": goal(entry, key), "unit": spec.unit} for key, spec in GOALS.items()}
+    view: dict[str, Any] = {key: {"value": goal(entry, key), "unit": spec.unit} for key, spec in GOALS.items()}
+    start = entry.runtime_data.plan_start
+    view["plan_start_date"] = start.isoformat() if start else None
+    return view
 
 
 class _Tool(llm.Tool):
@@ -300,13 +304,24 @@ class GetGoalsTool(_Tool):
 class SetGoalsTool(_Tool):
     name = "set_goals"
     hints = _WRITE
-    description = "Change one or more goals; 0 clears a goal. Returns all goals."
+    description = ("Change one or more goals or plan values (start date, start weight, stage weights, "
+                   "deficit band and flags, saturated fat max); 0 clears a number, an empty plan_start_date "
+                   "clears the date. Returns all goals.")
     parameters = schema_lib.Schema({
-        schema_lib.Optional(key, description=f"{spec.unit}, 0-{spec.max:g}"): NUMBER
-        for key, spec in GOALS.items()
+        **{schema_lib.Optional(key, description=f"{spec.unit}, 0-{spec.max:g}"): NUMBER
+           for key, spec in GOALS.items()},
+        schema_lib.Optional("plan_start_date", description="YYYY-MM-DD the plan started; empty clears"): str,
     })
 
     async def _async_run(self, hass, args):
+        start: date | None = None
+        if "plan_start_date" in args:
+            raw = args.pop("plan_start_date").strip()
+            try:
+                start = date.fromisoformat(raw) if raw else None
+            except ValueError as exc:
+                raise ToolError(f"plan_start_date must be YYYY-MM-DD or empty, got {raw!r}") from exc
+            async_dispatcher_send(hass, SIGNAL_PLAN_START, start)
         for key, value in args.items():
             if not 0 <= value <= GOALS[key].max:
                 raise ToolError(f"{key} must be between 0 and max {GOALS[key].max:g}, got {value}")

@@ -33,7 +33,7 @@ from .store import NutritionStore
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.NUMBER, Platform.SENSOR]
+PLATFORMS = [Platform.NUMBER, Platform.DATE, Platform.SENSOR]
 SERVICE_REMOVE_LEGACY = "remove_legacy_statistics"
 SYNC_INTERVAL = timedelta(hours=1)
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -45,6 +45,8 @@ class NutritionData:
     #: goal key -> value; 0 = not set. Filled by the number entities.
     goals: dict[str, float] = field(default_factory=dict)
     stats_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    #: The plan's start date (date entity); None = not set.
+    plan_start: date | None = None
     #: False while the log is empty since startup (a lost or corrupt log file): then
     #: nothing is synced, which would set every logged day's history to 0.
     history_armed: bool = False

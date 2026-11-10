@@ -57,6 +57,30 @@
       },
       "alcohol_limit_week": {
         "name": "Alcohol limit per week"
+      },
+      "start_weight": {
+        "name": "Start weight"
+      },
+      "stage_1_weight": {
+        "name": "Stage 1 weight"
+      },
+      "stage_2_weight": {
+        "name": "Stage 2 weight"
+      },
+      "deficit_min": {
+        "name": "Deficit min"
+      },
+      "deficit_max": {
+        "name": "Deficit max"
+      },
+      "deficit_too_small": {
+        "name": "Deficit too small"
+      },
+      "deficit_too_large": {
+        "name": "Deficit too large"
+      },
+      "sat_fat_max": {
+        "name": "Saturated fat max"
       }
     },
     "sensor": {
@@ -86,6 +110,11 @@
       },
       "to_target_weight": {
         "name": "To target weight"
+      }
+    },
+    "date": {
+      "plan_start_date": {
+        "name": "Plan start date"
       }
     }
   },

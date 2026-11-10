@@ -11,6 +11,14 @@ ENTITY_IDS = {
     "protein_ceiling": "number.nutrition_protein_ceiling",
     "target_weight": "number.nutrition_target_weight",
     "alcohol_limit_week": "number.nutrition_alcohol_limit_per_week",
+    "start_weight": "number.nutrition_start_weight",
+    "stage_1_weight": "number.nutrition_stage_1_weight",
+    "stage_2_weight": "number.nutrition_stage_2_weight",
+    "deficit_min": "number.nutrition_deficit_min",
+    "deficit_max": "number.nutrition_deficit_max",
+    "deficit_too_small": "number.nutrition_deficit_too_small",
+    "deficit_too_large": "number.nutrition_deficit_too_large",
+    "sat_fat_max": "number.nutrition_saturated_fat_max",
 }
 
 

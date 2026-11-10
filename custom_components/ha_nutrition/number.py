@@ -37,6 +37,15 @@ GOALS: dict[str, GoalSpec] = {
         GoalSpec("protein_ceiling", "g", 400, 1),
         GoalSpec("target_weight", "kg", 300, 0.1),
         GoalSpec("alcohol_limit_week", "units", 100, 0.5),
+        # The plan (v0.3.0): where it started and the bands the energy balance is judged by.
+        GoalSpec("start_weight", "kg", 300, 0.1),
+        GoalSpec("stage_1_weight", "kg", 300, 0.1),
+        GoalSpec("stage_2_weight", "kg", 300, 0.1),
+        GoalSpec("deficit_min", "kcal/d", 2000, 10),
+        GoalSpec("deficit_max", "kcal/d", 2000, 10),
+        GoalSpec("deficit_too_small", "kcal/d", 2000, 10),
+        GoalSpec("deficit_too_large", "kcal/d", 3000, 10),
+        GoalSpec("sat_fat_max", "g/d", 200, 1),
     )
 }
 
