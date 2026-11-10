@@ -148,10 +148,35 @@ are kept in the recorder's history (see [Recorder](#recorder)), so you can see l
 which goal applied when. **0 means not set**, and sensors that need an unset goal are
 unavailable.
 
+### The plan
+
+For a weight-loss plan there are more goals, plus a date:
+
+| Entity | What it's for |
+|---|---|
+| *Plan start date* (date) | where "since start" counts from; set it in the UI's date picker, an automation or `set_goals` (`plan_start_date`, empty clears) |
+| *Start weight* | the weight at the start; 0 = the first weighing on or after the start date, from the weight sensor's statistics |
+| *Stage 1 weight*, *Stage 2 weight* | intermediate targets (the final one is *Target weight*) |
+| *Deficit min*, *Deficit max* | the deficit band a day should land in (e.g. 500–600 kcal) |
+| *Deficit too small*, *Deficit too large* | the flags outside it (e.g. 300 and 1,000 kcal) |
+| *Saturated fat max* | the daily ceiling for saturated fat |
+
+From them and net per day:
+
+- **Net 7-day average** (kcal/d): the mean of the last 7 completed days that have a
+  net (at least 3).
+- **Deficit since start** (kcal): the summed deficit from the start date to
+  yesterday.
+- **Expected weight** (kg): start weight minus the deficit since start / 7,700 kcal
+  per kg, with a daily history from the start date, so it can be drawn next to the
+  real weight. Changing the start date or weight rewrites that history.
+
+Today is never included: the day isn't over.
+
 ## History
 
-Daily intake, protein, saturated fat and alcohol live on the *today* sensors
-themselves (intake, protein, saturated fat, alcohol today). They are totals that
+Daily intake, protein, saturated fat, alcohol and net (intake − burn) live on the
+*today* sensors themselves (intake, protein, saturated fat, alcohol and net today). They are totals that
 start over at local midnight (`state_class: total`), like a "rain today" sensor, and
 their statistics hold **every logged day**:
 
@@ -162,6 +187,8 @@ their statistics hold **every logged day**:
 - A brand-new sensor gets the history once the recorder has compiled it for the
   first time (allow an hour after setup).
 - A day without entries has no value; a day whose entries were all deleted shows 0.
+- Net exists for a day once both intake and burn are known (burn per day comes from
+  the burn sensor's statistics); a day the phone hasn't synced yet gets its net later.
 - An empty log at startup (a lost or corrupt `.storage/ha_nutrition.log`) leaves
   the history alone.
 
