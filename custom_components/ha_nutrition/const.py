@@ -27,3 +27,5 @@ DEFAULT_BURN_STATISTIC = "ha_samsung_health:total_calories"
 SIGNAL_UPDATED = "ha_nutrition_updated"
 #: Fired with a date or None to set the plan start date entity.
 SIGNAL_PLAN_START = "ha_nutrition_plan_start"
+#: Fired (no arguments) after the derived plan values were recomputed.
+SIGNAL_PLAN_UPDATED = "ha_nutrition_plan_updated"

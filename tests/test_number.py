@@ -1,4 +1,4 @@
-from homeassistant.core import State
+from homeassistant.core import State, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from pytest_homeassistant_custom_component.common import MockConfigEntry, mock_restore_cache_with_extra_data
 
@@ -34,7 +34,8 @@ async def test_defaults_zero_means_not_set(hass, entry):
 
 async def test_set_value_updates_goals_and_signals(hass, entry):
     signals = []
-    async_dispatcher_connect(hass, SIGNAL_UPDATED, lambda: signals.append(1))
+    # @callback: a plain function would run in an executor thread, maybe after the assert
+    async_dispatcher_connect(hass, SIGNAL_UPDATED, callback(lambda: signals.append(1)))
     await hass.services.async_call("number", "set_value", {"entity_id": ENTITY_IDS["deficit_target"], "value": 600},
                                    blocking=True)
     assert goal(entry, "deficit_target") == 600

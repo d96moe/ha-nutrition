@@ -110,6 +110,15 @@
       },
       "to_target_weight": {
         "name": "To target weight"
+      },
+      "net_7_day_average": {
+        "name": "Net 7-day average"
+      },
+      "deficit_since_start": {
+        "name": "Deficit since start"
+      },
+      "expected_weight": {
+        "name": "Expected weight"
       }
     },
     "date": {

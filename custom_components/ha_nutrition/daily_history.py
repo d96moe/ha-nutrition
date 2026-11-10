@@ -42,15 +42,22 @@ def unit_class(unit: str | None) -> str | None:
     return converter.UNIT_CLASS if converter else None
 
 
-async def async_sync_sensor_history(
+async def async_daily_series(
     hass: HomeAssistant, entry: NutritionConfigEntry, now: datetime
-) -> dict[str, SyncResult]:
+) -> dict[str, dict[date, float]]:
+    """The log's daily totals per statistic key, plus "net" (intake − burn)."""
     series = build_series(entry.runtime_data.store.all_entries())
     series["net"] = {}
     if series["kcal"]:
         source = await async_burn_source(hass, entry.options)
         burn = await async_daily_burn(hass, source, min(series["kcal"]), dt_util.as_local(now).date())
         series["net"] = net_truth(series["kcal"], burn)
+    return series
+
+
+async def async_sync_sensor_history(
+    hass: HomeAssistant, entry: NutritionConfigEntry, series: dict[str, dict[date, float]], now: datetime
+) -> dict[str, SyncResult]:
     registry = er.async_get(hass)
     results: dict[str, SyncResult] = {}
     for key, sensor_key in SENSOR_KEYS.items():

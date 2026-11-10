@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.components.sensor import SensorEntity, SensorStateClass
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -25,10 +25,11 @@ from homeassistant.helpers.event import (
 )
 from homeassistant.util import dt as dt_util
 
-from .const import CONF_BMR_ENTITY, CONF_BURN_ENTITY, CONF_WEIGHT_ENTITY, SIGNAL_UPDATED
+from .const import CONF_BMR_ENTITY, CONF_BURN_ENTITY, CONF_WEIGHT_ENTITY, SIGNAL_PLAN_UPDATED, SIGNAL_UPDATED
 from .entity import NutritionEntity
 from .models import DayTotals, FoodEntry, day_totals
 from .number import goal
+from .plan import PlanSummary
 
 if TYPE_CHECKING:
     from . import NutritionConfigEntry
@@ -83,6 +84,7 @@ class Today:
     weight: float | None
     goals: Callable[[str], float | None]
     entries: list[FoodEntry] = field(default_factory=list)
+    plan: PlanSummary | None = None
 
 
 def _r(value: float | None, digits: int = 1) -> float | None:
@@ -145,6 +147,9 @@ class Spec:
     digits: int = 1
     #: Daily/weekly total: the day its count started (state_class total, last_reset).
     reset: Callable[[Today], date] | None = None
+    #: A measurement (plan values): state_class measurement, optional device class.
+    measurement: bool = False
+    device_class: SensorDeviceClass | None = None
 
 
 def _day(t: Today) -> date:
@@ -162,6 +167,11 @@ SENSORS = (
          lambda t: {"forecast": True, "projected_burn": _r(_projected_burn(t), 0)}, digits=0),
     Spec("protein_left_today", "g", _protein_left),
     Spec("to_target_weight", "kg", _to_target, digits=2),
+    Spec("net_7_day_average", "kcal", lambda t: t.plan.avg_7 if t.plan else None, digits=0, measurement=True),
+    Spec("deficit_since_start", "kcal", lambda t: t.plan.deficit_since_start if t.plan else None, digits=0,
+         measurement=True),
+    Spec("expected_weight", "kg", lambda t: t.plan.current_expected if t.plan else None, digits=2,
+         measurement=True, device_class=SensorDeviceClass.WEIGHT),
 )
 
 
@@ -180,6 +190,10 @@ class NutritionSensor(NutritionEntity, SensorEntity):
             # A total that starts over (at midnight, or Monday for the week), like a
             # "rain today" sensor: the recorder keeps its statistics on this sensor.
             self._attr_state_class = SensorStateClass.TOTAL
+        elif spec.measurement:
+            self._attr_state_class = SensorStateClass.MEASUREMENT
+            if spec.device_class:
+                self._attr_device_class = spec.device_class
         self._today: Today | None = None
 
     @property
@@ -205,6 +219,7 @@ class NutritionSensor(NutritionEntity, SensorEntity):
             weight=source_value(self.hass, options.get(CONF_WEIGHT_ENTITY), None),
             goals=lambda key: goal(self.entry, key),
             entries=entries,
+            plan=self.entry.runtime_data.plan,
         )
 
     @callback
@@ -229,6 +244,7 @@ class NutritionSensor(NutritionEntity, SensorEntity):
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_UPDATED, self._refresh))
+        self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_PLAN_UPDATED, self._refresh))
         self.async_on_remove(async_track_time_change(self.hass, self._refresh, hour=0, minute=0, second=0))
         self.async_on_remove(async_track_time_interval(self.hass, self._refresh, REFRESH))
         sources = [e for k in (CONF_BURN_ENTITY, CONF_BMR_ENTITY, CONF_WEIGHT_ENTITY)
